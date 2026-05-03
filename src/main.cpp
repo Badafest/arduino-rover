@@ -4,19 +4,22 @@
 AF_DCMotor leftMotor(1);
 AF_DCMotor rightMotor(2);
 
+const uint8_t irPin = A2;                  // IR sensor pin
 const uint8_t trigPin = A3;                // US trig pin
 const uint8_t echoPin = A4;                // US echo pin
-const uint8_t MOTOR_SPEED = 128;           // 0 - 255
-const uint8_t MIN_CLEARANCE = 30;          // cm
+const uint8_t MOTOR_SPEED = 196;           // 0 - 255
+const uint8_t MIN_CLEARANCE = 15;          // cm
 const unsigned long CHECK_FREQUENCY = 100; // ms
 
 float distance;
+bool floorPresent;
 
 bool motorsRunning = false;
 unsigned long lastChecked = 0;
 
 void setup()
 {
+  pinMode(irPin, INPUT);
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin, INPUT);
 
@@ -39,9 +42,11 @@ void loop()
     digitalWrite(trigPin, LOW);
 
     distance = (pulseIn(echoPin, HIGH) * .0343) / 2;
+
+    floorPresent = digitalRead(irPin) == LOW;
   }
 
-  if (distance > MIN_CLEARANCE && !motorsRunning)
+  if (distance > MIN_CLEARANCE && !motorsRunning && floorPresent)
   {
     leftMotor.setSpeed(MOTOR_SPEED);
     rightMotor.setSpeed(MOTOR_SPEED);
