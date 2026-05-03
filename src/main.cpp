@@ -4,36 +4,44 @@
 AF_DCMotor leftMotor(1);
 AF_DCMotor rightMotor(2);
 
-const uint8_t irPin = A2;                  // IR sensor pin
-const uint8_t trigPin = A3;                // US trig pin
-const uint8_t echoPin = A4;                // US echo pin
-const uint8_t MOTOR_SPEED = 196;           // 0 - 255
-const uint8_t MIN_CLEARANCE = 15;          // cm
-const unsigned long CHECK_FREQUENCY = 100; // ms
+const uint8_t irPin = A2;                   // IR sensor pin
+const uint8_t trigPin = A3;                 // US trig pin
+const uint8_t echoPin = A4;                 // US echo pin
+const uint8_t MOTOR_SPEED = 125;            // 0 - 255
+const uint8_t MIN_CLEARANCE = 20;           // cm
+const unsigned long CHECK_INTERVAL = 60;    // ms
+const unsigned long RECOVER_INTERVAL = 100; // ms
 
 float distance;
-bool floorPresent;
 
 bool motorsRunning = false;
-unsigned long lastChecked = 0;
+unsigned long obstacleCheckTimestamp = 0;
+bool floorPresent = false;
 
 void setup()
 {
-  pinMode(irPin, INPUT);
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
+  Serial.begin(9600);
 
-  lastChecked = millis() - CHECK_FREQUENCY;
+  pinMode(irPin, INPUT);
+  pinMode(echoPin, INPUT);
+  pinMode(trigPin, OUTPUT);
+
+  obstacleCheckTimestamp = millis() - 2 * CHECK_INTERVAL;
+
+  leftMotor.setSpeed(MOTOR_SPEED);
+  rightMotor.setSpeed(MOTOR_SPEED);
+
+  leftMotor.run(FORWARD);
+  rightMotor.run(FORWARD);
 }
 
 void loop()
 {
   unsigned long now = millis();
 
-  if (now - lastChecked > CHECK_FREQUENCY)
+  if (now - obstacleCheckTimestamp > CHECK_INTERVAL)
   {
-
-    lastChecked = now;
+    obstacleCheckTimestamp = now;
 
     digitalWrite(trigPin, LOW);
     delayMicroseconds(2);
@@ -43,11 +51,20 @@ void loop()
 
     distance = (pulseIn(echoPin, HIGH) * .0343) / 2;
 
-    floorPresent = digitalRead(irPin) == LOW;
+    Serial.print("distance: ");
+    Serial.println(distance);
   }
 
-  if (distance > MIN_CLEARANCE && !motorsRunning && floorPresent)
+  floorPresent = digitalRead(irPin) == LOW;
+
+  if (distance > MIN_CLEARANCE && floorPresent)
   {
+    if (motorsRunning)
+    {
+      return;
+    }
+
+    // GO
     leftMotor.setSpeed(MOTOR_SPEED);
     rightMotor.setSpeed(MOTOR_SPEED);
 
@@ -56,8 +73,26 @@ void loop()
 
     motorsRunning = true;
   }
-  else if (motorsRunning)
+  else
   {
+    if (!motorsRunning)
+    {
+      return;
+    }
+
+    if (!floorPresent)
+    {
+      // BREAK!!
+      leftMotor.setSpeed(MOTOR_SPEED * 2);
+      rightMotor.setSpeed(MOTOR_SPEED * 2);
+
+      leftMotor.run(BACKWARD);
+      rightMotor.run(BACKWARD);
+
+      delay(RECOVER_INTERVAL);
+    }
+
+    // STOP
     leftMotor.setSpeed(0);
     rightMotor.setSpeed(0);
 
