@@ -4,9 +4,11 @@
 AF_DCMotor leftMotor(1);
 AF_DCMotor rightMotor(2);
 
-const uint8_t irPin = A2;                  // IR sensor pin
+const uint8_t floorPin = A1;               // fllor indicator pin
+const uint8_t irPin = 2;                   // IR sensor pin
 const uint8_t trigPin = A3;                // US trig pin
 const uint8_t echoPin = A4;                // US echo pin
+const uint8_t obstaclePin = A5;            // obstacle indicator pin
 const uint8_t MOTOR_SPEED = 125;           // 0 - 255
 const uint8_t MIN_CLEARANCE = 20;          // cm
 const unsigned long CHECK_INTERVAL = 60;   // ms
@@ -21,11 +23,11 @@ bool floorPresent = false;
 
 void setup()
 {
-  Serial.begin(9600);
-
+  pinMode(floorPin, OUTPUT);
   pinMode(irPin, INPUT);
   pinMode(echoPin, INPUT);
   pinMode(trigPin, OUTPUT);
+  pinMode(obstaclePin, OUTPUT);
 
   obstacleCheckTimestamp = millis() - 2 * CHECK_INTERVAL;
 }
@@ -48,6 +50,9 @@ void loop()
   }
 
   floorPresent = digitalRead(irPin) == LOW;
+
+  digitalWrite(obstaclePin, distance > MIN_CLEARANCE ? HIGH : LOW);
+  digitalWrite(floorPin, floorPresent ? LOW : HIGH);
 
   if (distance > MIN_CLEARANCE && floorPresent)
   {
